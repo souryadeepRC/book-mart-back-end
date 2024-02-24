@@ -11,11 +11,7 @@ module.exports.sendErrorResponse = (res) => (error) => {
     .status(404)
     .json({ error_description: error.message || "Error Occurred!" });
 };
-
-module.exports.fetchBearerToken = (req) => {
-  const bearerToken = req.headers.authorization;
-  return bearerToken?.replace(/^Bearer\s+/, "");
-};
+ 
 module.exports.verifyToken = (token, secretKey) => {
   return jwt.verify(token, secretKey, (err, decodedToken) => {
     if (err) {
@@ -38,7 +34,7 @@ module.exports.createAuthToken = (secretKey, tokenParams, expiryTime) => {
 };
 module.exports.generateOtp = (userId, otpLength = 4) => {
   try {
-    const otpExpiryMin = 2;
+    const otpExpiryMin = 5;
     const generatedOtp = otpGenerator.generate(otpLength, {
       upperCaseAlphabets: false,
       specialChars: false,

@@ -2,7 +2,6 @@ const bcryptjs = require("bcryptjs");
 // utils
 const {
   sendErrorResponse,
-  fetchBearerToken,
   generateOtp,
   verifyToken,
   createAuthToken,
@@ -67,6 +66,10 @@ module.exports.createAuthentication = async (req, res) => {
 module.exports.loginAuthentication = async (req, res) => {
   const { email, password } = req.body;
   try {
+    if (req.headers.authorization) {
+      throw new Error("Please complete the login open in other tab");
+    }
+    // --- VERIFY CREDENTIALS
     const auth = await Authentication.findOne({ email });
     if (!auth) {
       throw new Error("We cannot find an account with that email address");
@@ -79,31 +82,63 @@ module.exports.loginAuthentication = async (req, res) => {
     // --- GENERATE OTP
     const { otp, otpToken } = generateOtp(auth._id);
     // create a record for user otp and store otp-token (user id + otp value)
-    const userOtp = await UserOtp.findOne({ userId: auth._id });
+    /*  const userOtp = await UserOtp.findOne({ userId: auth._id });
     if (userOtp) {
       throw new Error("Already logged in in another device");
-    }
-    const savedUserOtp = await new UserOtp({
-      userId: auth._id,
-      otpToken,
-    }).save();
-    if (!savedUserOtp) {
-      throw new Error("ERROR in OTP generation");
-    }
+    } */
     // create user authentication token
-    const { token, expiryDate } = createAuthToken(
+    const { token: authToken, expiryDate } = createAuthToken(
       process.env.AUTH_TOKEN_SECRET_KEY,
       { id: auth._id },
       10 * 60
     );
+    const savedUserOtp = await new UserOtp({
+      userId: auth._id,
+      otpToken,
+      authToken,
+    }).save();
+    if (!savedUserOtp) {
+      throw new Error("ERROR in OTP generation");
+    }
+
     // sending authentication SUCCESS response
     res.status(200).json({
       otp,
       expiryDate: expiryDate,
-      accessToken: token,
+      authToken,
     });
   } catch (error) {
     sendErrorResponse(res)(error); // sending general ERROR response
+  }
+};
+// POST || RESEND AUTH OTP
+module.exports.resendAuthenticationOtp = async (req, res) => {
+  try {
+    const userOtp = await UserOtp.findOne({
+      userId: req.userId,
+      authToken: req.authToken,
+    });
+
+    // --- GENERATE OTP
+    const { otp, otpToken } = generateOtp(req.userId);
+    let savedUserOtp;
+    if (userOtp) {
+      userOtp.otpToken = otpToken;
+      savedUserOtp = userOtp;
+    } else {
+      // OTP Expired
+      savedUserOtp = await new UserOtp({
+        userId: req.userId,
+        otpToken,
+        authToken: req.authToken,
+      });
+    }
+    savedUserOtp
+      .save()
+      .then((response) => res.status(200).json({ otp }))
+      .catch(sendErrorResponse(res));
+  } catch (err) {
+    sendErrorResponse(res)(err);
   }
 };
 
@@ -112,9 +147,12 @@ module.exports.verifyAuthenticationOtp = async (req, res) => {
   const { otp: enteredOtp } = req.body;
 
   try {
-    const userOtp = await UserOtp.findOne({ userId: req.userId });
+    const userOtp = await UserOtp.findOne({
+      userId: req.userId,
+      authToken: req.authToken,
+    });
     if (!userOtp) {
-      throw new Error("Invalid User");
+      throw new Error("OTP expired");
     }
 
     // verify OTP token fetched from user-otp database
@@ -136,30 +174,12 @@ module.exports.verifyAuthenticationOtp = async (req, res) => {
     }
 
     const { token, expiryDate } = createAuthToken(
-      process.env.AUTH_TOKEN_SECRET_KEY,
+      process.env.USER_TOKEN_SECRET_KEY,
       { id: userOtp.userId },
       10 * 60 * 60
     );
 
     res.status(200).json({ accessToken: token, expiryDate });
-  } catch (err) {
-    sendErrorResponse(res)(err);
-  }
-};
-// POST || RESEND AUTH OTP
-module.exports.resendAuthenticationOtp = async (req, res) => {
-  try {
-    const userOtp = await UserOtp.findOne({ userId: req.userId });
-    if (!userOtp) {
-      throw new Error("Invalid User");
-    }
-    // --- GENERATE OTP
-    const { otp, otpToken } = generateOtp(req.userId);
-    userOtp.otpToken = otpToken;
-    userOtp
-      .save()
-      .then((savedUserOtp) => res.status(200).json({ otp }))
-      .catch(sendErrorResponse(res));
   } catch (err) {
     sendErrorResponse(res)(err);
   }
