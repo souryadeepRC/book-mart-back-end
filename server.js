@@ -40,7 +40,11 @@ mongoose
   .connect(DATABASE_URL)
   .then((response) => {
     console.log("Database connected!");
-    app.listen(process.env.PORT || 8000);
+    const server = app.listen(process.env.PORT || 8000);
+    const io = require("./socket").init(server);
+    io.on("connection", (socket) => {
+      console.log("Client connected");
+    });
   })
   .catch((error) => {
     console.log(error);

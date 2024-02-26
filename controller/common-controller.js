@@ -1,4 +1,4 @@
-const { verifyToken } = require("../utils/common-utils");
+const { verifyToken, sendErrorResponse } = require("../utils/common-utils");
 
 module.exports.allowCrossDomain = (req, res, next) => {
   res.header("Access-Control-Allow-Origin", "http://localhost:3000");

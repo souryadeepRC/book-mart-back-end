@@ -32,7 +32,7 @@ module.exports.checkAuthExistence = async (req, res) => {
 };
 // POST ||  SIGN UP USER
 module.exports.createAuthentication = async (req, res) => {
-  const { email, password, ...userDetails } = req.body;
+  const { email, password, username, ...userDetails } = req.body;
   try {
     const auth = await Authentication.findOne({ email });
 
@@ -47,12 +47,14 @@ module.exports.createAuthentication = async (req, res) => {
     const createdAuth = await new Authentication({
       email,
       password: encryptedPassword,
+      username,
     }).save(); // storing authentication record
 
     // create user record based on authentication
     new User({
       ...userDetails,
       email,
+      username,
       userId: createdAuth._id,
     })
       .save() // storing user record based on authentication
