@@ -6,12 +6,14 @@ module.exports.sendResponse = (res, data) => {
   }
   return res.status(200).json(data);
 };
-module.exports.sendErrorResponse = (res) => (error) => {
-  res
-    .status(404)
-    .json({ error_description: error.message || "Error Occurred!" });
-};
- 
+module.exports.sendErrorResponse =
+  (res, statusCode = 404) =>
+  (error) => {
+    res
+      .status(statusCode)
+      .json({ error_description: error.message || "Error Occurred!" });
+  };
+
 module.exports.verifyToken = (token, secretKey) => {
   return jwt.verify(token, secretKey, (err, decodedToken) => {
     if (err) {

@@ -1,3 +1,4 @@
+const UserSession = require("../model/UserSession");
 const { verifyToken, sendErrorResponse } = require("../utils/common-utils");
 
 module.exports.allowCrossDomain = (req, res, next) => {
@@ -19,31 +20,43 @@ module.exports.isAuth = (req, res, next) => {
       process.env.AUTH_TOKEN_SECRET_KEY
     );
   } catch (err) {
-    throw err;
+    return sendErrorResponse(res, 401)(new Error("Suspicious login detected"));
   }
   if (!decodedToken) {
-    throw new Error("Not Authenticated");
+    return sendErrorResponse(res, 401)(new Error("User Not Authenticated"));
   }
   req.userId = decodedToken.id;
   req.authToken = userAccessToken;
   next();
 };
 
-module.exports.isUserAuthenticated = (req, res, next) => {
+module.exports.isUserAuthenticated = async (req, res, next) => {
   let decodedToken;
+  let userAccessToken;
   try {
     const bearerToken = req.headers.authorization;
-    const userAccessToken = bearerToken?.replace(/^Bearer\s+/, "");
+    userAccessToken = bearerToken?.replace(/^Bearer\s+/, "");
     decodedToken = verifyToken(
       userAccessToken,
       process.env.USER_TOKEN_SECRET_KEY
     );
   } catch (err) {
-    throw err;
+    return sendErrorResponse(res, 401)(new Error("Token Expired"));
   }
   if (!decodedToken) {
-    throw new Error("Not Authenticated");
+    return sendErrorResponse(res, 401)(new Error("Not Authenticated"));
   }
+  const userSession = await UserSession.findOne({
+    userId: decodedToken.id,
+    accessToken: userAccessToken,
+  });
+  if (!userSession) {
+    return sendErrorResponse(
+      res,
+      401
+    )(new Error("User Logged out already or Session expired"));
+  }
+
   req.userId = decodedToken.id;
   next();
 };

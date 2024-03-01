@@ -6,8 +6,7 @@ const MongodbStore = require("connect-mongodb-session")(session);
 require("dotenv").config();
 const { allowCrossDomain } = require("./controller/common-controller");
 // local
-const apiRoutes = require("./routes/api-routes");
-const otpGenerator = require("otp-generator");
+const apiRoutes = require("./routes/api-routes"); 
 const DATABASE_URL = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASSWORD}@${process.env.DB_CLUSTER_URL}/${process.env.DATABASE_NAME}`;
 
 const app = express();
@@ -26,11 +25,7 @@ app.use(
 );
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
-/* app.use((req, res, next) => {
-  const otp = otpGenerator.generate(6);
-  res.setHeader('Set-Cookie',`otp = ${otp}`)
-  next();
-}); */
+ 
 app.use("/api/book-mart", apiRoutes);
 
 app.use((req, res) => {

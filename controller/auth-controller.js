@@ -10,6 +10,7 @@ const {
 const Authentication = require("../model/Authentication");
 const User = require("../model/User");
 const UserOtp = require("../model/UserOtp");
+const UserSession = require("../model/UserSession");
 
 // =============================== handler functions
 
@@ -180,9 +181,46 @@ module.exports.verifyAuthenticationOtp = async (req, res) => {
       { id: userOtp.userId },
       10 * 60 * 60
     );
-
-    res.status(200).json({ accessToken: token, expiryDate });
+    const existingSession = await UserSession.findOne({
+      userId: req.userId,
+    });
+    let userSession;
+    if (existingSession) {
+      existingSession.accessToken = token;
+      userSession = await existingSession.save();
+    } else {
+      userSession = await new UserSession({
+        userId: req.userId,
+        accessToken: token,
+      }).save();
+    }
+    if (userSession) {
+      res.status(200).json({ accessToken: token, expiryDate });
+    }
   } catch (err) {
     sendErrorResponse(res)(err);
   }
+};
+
+// POST || CHECK USER AUTH
+module.exports.checkUserAuth = (req, res) => {
+  try {
+    if (!req.userId) {
+      throw new Error("User not authenticated");
+    }
+    res.status(200).json({ isUserAuthenticated: true });
+  } catch (err) {
+    sendErrorResponse(res)(err);
+  }
+};
+
+module.exports.logoutAuthentication = (req, res) => {
+  UserSession.deleteOne({ userId: req.userId })
+    .then(({ acknowledged, deletedCount }) => {
+      if (!acknowledged || deletedCount === 0) {
+        throw new Error("User Logged out already or Session expired");
+      }
+      res.status(200).json({ isLoggedOut: true });
+    })
+    .catch(sendErrorResponse(res));
 };
