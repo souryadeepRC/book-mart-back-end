@@ -173,7 +173,7 @@ module.exports.verifyAuthenticationOtp = async (req, res) => {
       otpToken: userOtp.otpToken,
     });
     if (!acknowledged || deletedCount === 0) {
-      throw new Error("Not able to reset User OTP");
+      throw new Error("Not able to remove User OTP");
     }
 
     const { token, expiryDate } = createAuthToken(
@@ -223,4 +223,52 @@ module.exports.logoutAuthentication = (req, res) => {
       res.status(200).json({ isLoggedOut: true });
     })
     .catch(sendErrorResponse(res));
+};
+
+//  POST || CREATE USER
+module.exports.createUser = async (req, res) => {
+  const { email, username } = req.body.account;
+  const { password } = req.body.password;
+  try {
+    const encryptedPassword = await bcryptjs.hash(password, 12);
+    if (!encryptedPassword) {
+      throw new Error("Error while encrypting password");
+    }
+    const savedAuth = await new Authentication({
+      email,
+      password: encryptedPassword,
+      username,
+    }).save();
+
+    if (!savedAuth) {
+      throw new Error("User Exist");
+    }
+    const savedUser = await new User({
+      userId: savedAuth._id,
+      email,
+      username,
+      personal: req.body.personal,
+      address: req.body.address,
+      contact: req.body.contact,
+    }).save();
+
+    if (!savedUser) {
+      throw new Error("Error creating user");
+    }
+    const { token, expiryDate } = createAuthToken(
+      process.env.USER_TOKEN_SECRET_KEY,
+      { id: savedAuth._id },
+      10 * 60 * 60
+    );
+    const userSession = await new UserSession({
+      userId: savedAuth._id,
+      accessToken: token,
+    }).save();
+
+    if (userSession) {
+      res.status(200).json({ accessToken: token, expiryDate });
+    }
+  } catch (err) {
+    sendErrorResponse(res)(err);
+  }
 };

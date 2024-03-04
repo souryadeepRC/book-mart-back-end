@@ -15,6 +15,9 @@ const UserSchema = new Schema({
       lastName: String,
     },
   },
+  address: {
+    pinCode: String,
+  },
   contact: {
     primary: {
       code: String,
