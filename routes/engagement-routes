@@ -1,0 +1,11 @@
+const express = require("express");
+const router = express.Router();
+
+const {
+  getMessageBuddies,
+} = require("../controller/engagement/message-controller");
+const { isUserAuthenticated } = require("../controller/common-controller");
+
+router.get("/message/buddies", isUserAuthenticated, getMessageBuddies);
+
+module.exports = router;

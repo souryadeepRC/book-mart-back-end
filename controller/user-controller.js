@@ -7,7 +7,7 @@ const User = require("../model/User");
 const fetchUserDetails = (req, res) => { 
   try {
     User.findOne({ userId: req.userId })
-      .select("-_id -userId")
+      .select("-_id")
       .then((user) => sendResponse(res, user))
       .catch(sendErrorResponse(res));
   } catch (err) {

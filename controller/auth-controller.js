@@ -11,6 +11,7 @@ const Authentication = require("../model/Authentication");
 const User = require("../model/User");
 const UserOtp = require("../model/UserOtp");
 const UserSession = require("../model/UserSession");
+const UserBuddy = require("../model/UserBuddy");
 
 // =============================== handler functions
 
@@ -179,7 +180,7 @@ module.exports.verifyAuthenticationOtp = async (req, res) => {
     const { token, expiryDate } = createAuthToken(
       process.env.USER_TOKEN_SECRET_KEY,
       { id: userOtp.userId },
-      10 * 60 * 60
+      24 * 60 * 60 * 60
     );
     const existingSession = await UserSession.findOne({
       userId: req.userId,
@@ -252,7 +253,13 @@ module.exports.createUser = async (req, res) => {
       contact: req.body.contact,
     }).save();
 
-    if (!savedUser) {
+    const savedUserBuddy = await new UserBuddy({
+      userId: savedAuth._id,
+      buddyList: [],
+      buddyMessages: [],
+    }).save();
+
+    if (!savedUser && !savedUserBuddy) {
       throw new Error("Error creating user");
     }
     const { token, expiryDate } = createAuthToken(
