@@ -8,6 +8,11 @@ const UserSchema = new Schema({
     type: String,
     require: true,
   },
+  imageUrl: {
+    type: String,
+    default:
+      "https://wallpapers.com/images/hd/random-person-on-a-bridge-7np8sxqy5phik5cc.jpg",
+  },
   personal: {
     name: {
       firstName: String,
@@ -28,9 +33,33 @@ const UserSchema = new Schema({
       value: String,
     },
   },
-  userId: {
+  authId: {
     type: Schema.Types.ObjectId,
     ref: "Authentication",
+  },
+  buddyList: {
+    type: [
+      {
+        type: Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
+    default: [],
+  },
+  chatBuddies: {
+    type: [
+      {
+        buddy: {
+          type: Schema.Types.ObjectId,
+          ref: "User", 
+        },
+        chatRoom: {
+          type: Schema.Types.ObjectId,
+          ref: "ChatRoom", 
+        },
+      },
+    ],
+    default: [],
   },
 });
 

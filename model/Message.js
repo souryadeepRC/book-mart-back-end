@@ -1,27 +1,27 @@
 const { Schema, model } = require("mongoose");
-
 const MessageSchema = new Schema({
-  userId: {
+  chatRoomId: {
+    type: Schema.Types.ObjectId,
+    ref: "ChatRoom",
+  },
+  sender: {
     type: Schema.Types.ObjectId,
     required: true,
-    ref: "Authentication",
+    ref: "User",
+  },
+  receiver: {
+    type: Schema.Types.ObjectId,
+    required: true,
+    ref: "User",
   },
   message: {
     type: String,
     required: true,
   },
-  username: {
-    type: String,
-    required: true,
-  },
-  created_ts: {
+  timestamp: {
     type: Date,
     default: Date.now,
   },
-  updated_ts: {
-    type: Date,
-    default: null,
-  },
 });
-
+MessageSchema.index({ sender: 1, receiver: 1, timestamp: 1 });
 module.exports = model("Message", MessageSchema);

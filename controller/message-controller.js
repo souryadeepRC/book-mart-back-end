@@ -1,4 +1,4 @@
-const { sendErrorResponse } = require("../utils/common-utils");
+/* const { sendErrorResponse } = require("../utils/common-utils");
 // model
 const Message = require("../model/Message");
 const { getIo } = require("../socket");
@@ -30,3 +30,4 @@ module.exports.getMessage = async (req, res) => {
     sendErrorResponse(res)(err);
   }
 };
+ */

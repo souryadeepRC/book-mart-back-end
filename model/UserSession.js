@@ -3,7 +3,7 @@ const { Schema, model } = require("mongoose");
 const UserSessionSchema = new Schema({
   userId: {
     type: Schema.Types.ObjectId,
-    ref: "Authentication",
+    ref: "User",
   },
   accessToken: {
     type: String,

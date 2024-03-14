@@ -7,18 +7,17 @@ const {
   verifyAuthenticationOtp,
   resendAuthenticationOtp,
   checkUserAuth,
-  createUser,
 } = require("../controller/auth-controller");
 const {
   isAuth,
   isUserAuthenticated,
 } = require("../controller/common-controller");
+const Authentication = require("../model/Authentication");
 
 const router = express.Router();
 
 router.post("/check-auth-exist", checkAuthExistence);
-router.post("/create-authentication", createAuthentication);
-router.post("/sign-up-user", createUser);
+router.post("/sign-up-user", createAuthentication);
 router.post("/login", loginAuthentication);
 router.get("/logout", isUserAuthenticated, logoutAuthentication);
 

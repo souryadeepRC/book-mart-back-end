@@ -25,7 +25,7 @@ module.exports.isAuth = (req, res, next) => {
   if (!decodedToken) {
     return sendErrorResponse(res, 401)(new Error("User Not Authenticated"));
   }
-  req.userId = decodedToken.id;
+  req.authId = decodedToken.id;
   req.authToken = userAccessToken;
   next();
 };
@@ -33,7 +33,7 @@ module.exports.isAuth = (req, res, next) => {
 module.exports.isUserAuthenticated = async (req, res, next) => {
   let decodedToken;
   let userAccessToken;
-  try {
+ try {
     const bearerToken = req.headers.authorization;
     userAccessToken = bearerToken?.replace(/^Bearer\s+/, "");
     decodedToken = verifyToken(
@@ -46,7 +46,7 @@ module.exports.isUserAuthenticated = async (req, res, next) => {
   if (!decodedToken) {
     return sendErrorResponse(res, 401)(new Error("Not Authenticated"));
   }
-  const userSession = await UserSession.findOne({
+ /*   const userSession = await UserSession.findOne({
     userId: decodedToken.id,
     accessToken: userAccessToken,
   });
@@ -55,7 +55,7 @@ module.exports.isUserAuthenticated = async (req, res, next) => {
       res,
       401
     )(new Error("User Logged out already or Session expired"));
-  }
+  } */
 
   req.userId = decodedToken.id;
   next();

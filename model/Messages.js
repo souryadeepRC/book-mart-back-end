@@ -1,22 +1,27 @@
 const { Schema, model } = require("mongoose");
 
-const UserOtpSchema = new Schema({
-  authId: {
+const MessageSchema = new Schema({
+  userId: {
     type: Schema.Types.ObjectId,
+    required: true,
     ref: "Authentication",
   },
-  otpToken: {
+  message: {
     type: String,
     required: true,
   },
-  authToken: {
+  username: {
     type: String,
     required: true,
   },
-  createdAt: {
+  created_ts: {
     type: Date,
     default: Date.now,
-    expires: 5 * 60,
+  },
+  updated_ts: {
+    type: Date,
+    default: null,
   },
 });
-module.exports = model("UserOtp", UserOtpSchema);
+
+module.exports = model("Message", MessageSchema);

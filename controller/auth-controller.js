@@ -32,40 +32,6 @@ module.exports.checkAuthExistence = async (req, res) => {
     sendErrorResponse(res)(err);
   }
 };
-// POST ||  SIGN UP USER
-module.exports.createAuthentication = async (req, res) => {
-  const { email, password, username, ...userDetails } = req.body;
-  try {
-    const auth = await Authentication.findOne({ email });
-
-    if (auth) {
-      // check already exist authentication
-      throw new Error(`User with email ${email} already exist`);
-    }
-    // encrypt the password
-    const encryptedPassword = await bcryptjs.hash(password, 12);
-
-    // create authentication record
-    const createdAuth = await new Authentication({
-      email,
-      password: encryptedPassword,
-      username,
-    }).save(); // storing authentication record
-
-    // create user record based on authentication
-    new User({
-      ...userDetails,
-      email,
-      username,
-      userId: createdAuth._id,
-    })
-      .save() // storing user record based on authentication
-      .then((createdUser) => res.status(200).json(createdUser)) // sending user SUCCESS response
-      .catch(sendErrorResponse(res)); // sending user record ERROR response
-  } catch (error) {
-    sendErrorResponse(res)(err); // sending general ERROR response
-  }
-};
 // POST ||  LOGIN USER
 module.exports.loginAuthentication = async (req, res) => {
   const { email, password } = req.body;
@@ -97,7 +63,7 @@ module.exports.loginAuthentication = async (req, res) => {
       10 * 60
     );
     const savedUserOtp = await new UserOtp({
-      userId: auth._id,
+      authId: auth._id,
       otpToken,
       authToken,
     }).save();
@@ -119,12 +85,12 @@ module.exports.loginAuthentication = async (req, res) => {
 module.exports.resendAuthenticationOtp = async (req, res) => {
   try {
     const userOtp = await UserOtp.findOne({
-      userId: req.userId,
+      authId: req.authId,
       authToken: req.authToken,
     });
 
     // --- GENERATE OTP
-    const { otp, otpToken } = generateOtp(req.userId);
+    const { otp, otpToken } = generateOtp(req.authId);
     let savedUserOtp;
     if (userOtp) {
       userOtp.otpToken = otpToken;
@@ -132,7 +98,7 @@ module.exports.resendAuthenticationOtp = async (req, res) => {
     } else {
       // OTP Expired
       savedUserOtp = await new UserOtp({
-        userId: req.userId,
+        authId: req.authId,
         otpToken,
         authToken: req.authToken,
       });
@@ -152,7 +118,7 @@ module.exports.verifyAuthenticationOtp = async (req, res) => {
 
   try {
     const userOtp = await UserOtp.findOne({
-      userId: req.userId,
+      authId: req.authId,
       authToken: req.authToken,
     });
     if (!userOtp) {
@@ -165,25 +131,26 @@ module.exports.verifyAuthenticationOtp = async (req, res) => {
       process.env.AUTH_TOKEN_SECRET_KEY
     );
 
-    if (otp !== enteredOtp || userOtp.userId.toString() !== authId.toString()) {
+    if (otp !== enteredOtp || userOtp.authId.toString() !== authId.toString()) {
       throw new Error("Invalid OTP");
     }
     //  user id and OTP is matched -- Send a new user token() and remove user-otp db record
     const { acknowledged, deletedCount } = await UserOtp.deleteOne({
-      userId: userOtp.userId,
+      authId: userOtp.authId,
       otpToken: userOtp.otpToken,
     });
     if (!acknowledged || deletedCount === 0) {
       throw new Error("Not able to remove User OTP");
     }
 
+    const savedUser = await User.findOne({ authId: userOtp.authId });
     const { token, expiryDate } = createAuthToken(
       process.env.USER_TOKEN_SECRET_KEY,
-      { id: userOtp.userId },
+      { id: savedUser._id },
       24 * 60 * 60 * 60
     );
     const existingSession = await UserSession.findOne({
-      userId: req.userId,
+      userId: savedUser._id,
     });
     let userSession;
     if (existingSession) {
@@ -191,7 +158,7 @@ module.exports.verifyAuthenticationOtp = async (req, res) => {
       userSession = await existingSession.save();
     } else {
       userSession = await new UserSession({
-        userId: req.userId,
+        userId: savedUser._id,
         accessToken: token,
       }).save();
     }
@@ -227,7 +194,7 @@ module.exports.logoutAuthentication = (req, res) => {
 };
 
 //  POST || CREATE USER
-module.exports.createUser = async (req, res) => {
+module.exports.createAuthentication = async (req, res) => {
   const { email, username } = req.body.account;
   const { password } = req.body.password;
   try {
@@ -245,7 +212,7 @@ module.exports.createUser = async (req, res) => {
       throw new Error("User Exist");
     }
     const savedUser = await new User({
-      userId: savedAuth._id,
+      authId: savedAuth._id,
       email,
       username,
       personal: req.body.personal,
@@ -253,22 +220,16 @@ module.exports.createUser = async (req, res) => {
       contact: req.body.contact,
     }).save();
 
-    const savedUserBuddy = await new UserBuddy({
-      userId: savedAuth._id,
-      buddyList: [],
-      buddyMessages: [],
-    }).save();
-
-    if (!savedUser && !savedUserBuddy) {
+    if (!savedUser) {
       throw new Error("Error creating user");
     }
     const { token, expiryDate } = createAuthToken(
       process.env.USER_TOKEN_SECRET_KEY,
-      { id: savedAuth._id },
+      { id: savedUser._id },
       10 * 60 * 60
     );
     const userSession = await new UserSession({
-      userId: savedAuth._id,
+      userId: savedUser._id,
       accessToken: token,
     }).save();
 
