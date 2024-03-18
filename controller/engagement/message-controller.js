@@ -1,7 +1,12 @@
+// common controller
+const { sendErrorResponse } = require("../../utils/common-utils");
+// model
 const ChatRoom = require("../../model/ChatRoom");
 const Message = require("../../model/Message");
 const User = require("../../model/User");
-const { sendErrorResponse } = require("../../utils/common-utils");
+// socket
+const Socket = require("../../socket");
+const SocketController = require("../../socket/SocketController");
 
 module.exports.getMessageBuddies = async (req, res) => {
   const response = await User.findById(req.userId)
@@ -49,32 +54,39 @@ const updateChatRoom = async (chatRoomId, { timestamp, message }) => {
 };
 module.exports.sendMessage = async (req, res) => {
   try {
-    const { sender, receiver, message } = req.body;
+    const { roomId, sender, receiver, message } = req.body;
     const enteredMessage = {
       sender,
       receiver,
       message,
       timestamp: Date.now(),
     };
-    let existingChatRoom = await ChatRoom.findOne({
-      members: { $all: [sender, receiver] },
-    });
+
     let chatRoomId;
-    if (!existingChatRoom) {
+    if (!roomId) {
       chatRoomId = await createNewChatRoom(enteredMessage);
     } else {
-      chatRoomId = existingChatRoom._id;
+      chatRoomId = roomId;
       await updateChatRoom(chatRoomId, enteredMessage);
     }
- 
+
     const createdMessage = await new Message({
-      chatRoomId,
+      roomId: chatRoomId,
       ...enteredMessage,
     }).save();
 
     if (!createdMessage) {
       throw new Error("Error creating Message");
     }
+
+    const receiverRoom = createdMessage.receiver.toString();
+    SocketController.sendMessage(
+      Socket.getIo().in(receiverRoom),
+      "/user/engagement/chatMessage",
+      "add-message",
+      createdMessage
+    );
+
     res.status(200).json(createdMessage);
   } catch (err) {
     sendErrorResponse(res)(err);

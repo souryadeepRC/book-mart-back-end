@@ -1,8 +1,8 @@
 let io;
-
 module.exports = {
   init: (httpServer) => {
     io = require("socket.io")(httpServer, {
+      /* pingTimeout: 60 * 1000, */
       cors: {
         origin: "*",
         methods: ["GET", "POST"],

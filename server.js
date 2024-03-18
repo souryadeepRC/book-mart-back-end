@@ -5,6 +5,9 @@ require("dotenv").config();
 const { allowCrossDomain } = require("./controller/common-controller");
 // local
 const apiRoutes = require("./routes/api-routes");
+// socket
+const Socket = require("./socket");
+const SocketController = require("./socket/SocketController");
 const DATABASE_URL = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASSWORD}@${process.env.DB_CLUSTER_URL}/${process.env.DATABASE_NAME}`;
 
 const app = express();
@@ -24,10 +27,8 @@ mongoose
   .then((response) => {
     console.log("Database connected!");
     const server = app.listen(process.env.PORT || 8000);
-    const io = require("./socket").init(server);
-    io.on("connection", (socket) => {
-      console.log("Client connected");
-    });
+    const io = Socket.init(server);
+    io.on("connection", SocketController.connectSocket);
   })
   .catch((error) => {
     console.log(error);

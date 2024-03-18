@@ -12,7 +12,7 @@ const UserSessionSchema = new Schema({
   createdAt: {
     type: Date,
     default: Date.now,
-    expires: 10 * 60,
+    expires: 24 * 60 * 60 * 60,
   },
 });
 module.exports = model("UserSession", UserSessionSchema);
