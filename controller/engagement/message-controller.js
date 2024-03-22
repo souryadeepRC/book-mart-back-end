@@ -8,26 +8,36 @@ const User = require("../../model/User");
 const Socket = require("../../socket");
 const SocketController = require("../../socket/SocketController");
 
-module.exports.getMessageBuddies = async (req, res) => {
-  const response = await User.findById(req.userId)
-    .select("chatBuddies -_id")
+module.exports.getChatRooms = async (req, res) => {
+  const { page, pageSize } = req.body;
+  const response = await ChatRoom.find({ members: { $in: req.userId } })
+    .sort({ updated_ts: -1 })
+    .skip((page - 1) * pageSize)
+    .limit(pageSize)
     .populate([
       {
-        path: "chatBuddies.buddy",
+        path: "members",
         model: "User",
         select: "username imageUrl",
       },
-      {
-        path: "chatBuddies.chatRoom",
-        model: "ChatRoom",
-        select: "latestMessage updated_ts",
-      },
     ])
     .lean();
-
-  const chatBuddies = response.chatBuddies;
-  chatBuddies.sort((a, b) => b.chatRoom.updated_ts - a.chatRoom.updated_ts);
-  res.status(200).json(chatBuddies);
+  const rooms = response.map((chatRoom) => {
+    const existingMembers = [...chatRoom.members];
+    return {
+      ...chatRoom,
+      members: existingMembers.filter(
+        (member) => member._id.toString() !== req.userId.toString()
+      ),
+    };
+  });
+  res.status(200).json({
+    page: Number(page),
+    pageSize: Number(pageSize),
+    count: rooms.length,
+    isLastPage: rooms.length < pageSize,
+    rooms,
+  });
 };
 
 const createNewChatRoom = async ({ sender, receiver, message, timestamp }) => {
@@ -41,8 +51,8 @@ const createNewChatRoom = async ({ sender, receiver, message, timestamp }) => {
   }
   return createdChatRoom._id;
 };
-const updateChatRoom = async (chatRoomId, { timestamp, message }) => {
-  const updatedChatRoom = await ChatRoom.findByIdAndUpdate(chatRoomId, {
+const updateChatRoom = async (roomId, { timestamp, message }) => {
+  const updatedChatRoom = await ChatRoom.findByIdAndUpdate(roomId, {
     $set: {
       updated_ts: timestamp,
       latestMessage: message,
@@ -88,6 +98,49 @@ module.exports.sendMessage = async (req, res) => {
     );
 
     res.status(200).json(createdMessage);
+  } catch (err) {
+    sendErrorResponse(res)(err);
+  }
+};
+const fetchRoomMemberDetails = async (roomId) => {
+  return await ChatRoom.findById(roomId)
+    .select("members -_id")
+    .populate("members", "imageUrl username")
+    .lean();
+};
+module.exports.getMessages = async (req, res) => {
+  try {
+    const { roomId, page, pageSize } = req.body;
+    let roomDetails;
+    try {
+      if (page == 1) {
+        const memberDetails = await fetchRoomMemberDetails(roomId);
+        const members = memberDetails?.members?.filter(
+          (member) => member._id.toString() !== req.userId.toString()
+        );
+        roomDetails = {
+          members,
+        };
+      }
+    } catch (err) {
+      throw new Error(err.message);
+    }
+    const messages = await Message.find({ roomId })
+      .sort({ timestamp: -1 })
+      .skip((page - 1) * pageSize)
+      .limit(pageSize)
+      .exec();
+    if (!messages) {
+      throw new Error("Message Not found!");
+    }
+    res.json({
+      page: Number(page),
+      pageSize: Number(pageSize),
+      count: messages.length,
+      isLastPage: messages.length < pageSize,
+      messages,
+      roomDetails,
+    });
   } catch (err) {
     sendErrorResponse(res)(err);
   }

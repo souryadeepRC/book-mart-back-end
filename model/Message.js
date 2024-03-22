@@ -1,6 +1,6 @@
 const { Schema, model } = require("mongoose");
 const MessageSchema = new Schema({
-  chatRoomId: {
+  roomId: {
     type: Schema.Types.ObjectId,
     ref: "ChatRoom",
   },
