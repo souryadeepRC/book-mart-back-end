@@ -7,36 +7,67 @@ const User = require("../../model/User");
 // socket
 const Socket = require("../../socket");
 const SocketController = require("../../socket/SocketController");
+const mongoose = require("mongoose");
 
 module.exports.getChatRooms = async (req, res) => {
-  const { page, pageSize } = req.body;
-  const response = await ChatRoom.find({ members: { $in: req.userId } })
-    .sort({ updated_ts: -1 })
-    .skip((page - 1) * pageSize)
-    .limit(pageSize)
-    .populate([
-      {
-        path: "members",
-        model: "User",
-        select: "username imageUrl",
+  const { page, pageSize, searchText='' } = req.body; 
+  const modifiedPage = Number(page);
+  const modifiedPageSize = Number(pageSize); 
+  const userId = new mongoose.Types.ObjectId(req.userId);
+  const response = await ChatRoom.aggregate([
+    {
+      $match: {
+        members: userId,
       },
-    ])
-    .lean();
-  const rooms = response.map((chatRoom) => {
-    const existingMembers = [...chatRoom.members];
-    return {
-      ...chatRoom,
-      members: existingMembers.filter(
-        (member) => member._id.toString() !== req.userId.toString()
-      ),
-    };
-  });
+    },
+    {
+      $lookup: {
+        from: "users",
+        localField: "members",
+        foreignField: "_id",
+        as: "members",
+      },
+    },
+    {
+      $unwind: "$members",
+    },
+    {
+      $match: {
+        "members.username": {
+          $regex: searchText,
+          $options: "i",
+        },
+        "members._id": { $ne: userId },
+      },
+    },
+    {
+      $project: {
+        _id: 1,
+        latestMessage: 1,
+        updated_ts: 1,
+        "members.username": 1,
+        "members.imageUrl": 1,
+      },
+    },
+    {
+      $sort: {
+        updated_ts: -1 
+      }
+    },
+    {
+      $skip: (modifiedPage - 1) * modifiedPageSize,
+    },
+    {
+      $limit: modifiedPageSize,
+    }
+  ]); 
   res.status(200).json({
+    searchText,
     page: Number(page),
     pageSize: Number(pageSize),
-    count: rooms.length,
-    isLastPage: rooms.length < pageSize,
-    rooms,
+    count: response.length,
+    isLastPage: response.length < pageSize,
+    rooms: response,
   });
 };
 
